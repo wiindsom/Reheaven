@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunkdocs=self.webpackChunkdocs||[]).push([[78],{4410:e=>{e.exports=JSON.parse('{"sourceUrl":"https://github.com/wiindsom/Reheaven/blob/main","baseUrl":"/Reheaven/","classOrder":[],"apiCategories":[]}')}}]);
