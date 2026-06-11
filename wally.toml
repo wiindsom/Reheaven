@@ -1,6 +1,6 @@
 [package]
 name = "wiindsom/reheaven"
-description = "A simple, powerful fined-grained reactive state system for Roblox."
+description = "A simple, powerful fine-grained reactive state system for Roblox."
 version = "1.0.0"
 license = "MIT"
 authors = ["wiindsom"]
@@ -9,5 +9,5 @@ registry = "https://github.com/UpliftGames/wally-index"
 repository = "https://github.com/wiindsom/Reheaven"
 homepage = "https://arc.is-a.dev/Reheaven/"
 
-include = ["src", "README.md", "LICENSE"]
+include = ["src", "LICENSE"]
 exclude = [".github", "tests", "website"]
