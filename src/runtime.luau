@@ -347,6 +347,19 @@ local function signal<T>(initialValue: T, equals: Equals<T>?): (Getter<T>, Sette
 		if not changed then
 			return pendingValue
 		end
+		
+		local writingEffect = activeTarget
+		local selfWriteEffect = false
+		if writingEffect ~= NIL and type(updateValue) ~= "function" then
+			local targetKind = readu8(nodeKindBuffer, writingEffect - 1)
+			selfWriteEffect =
+				targetKind == NODE_EFFECT
+				and lastTarget == writingEffect
+				and lastTargetCycle == cycle
+			if DEBUG_WARNINGS and selfWriteEffect then
+				warnAt("[Reheaven] Signal was read and updated inside the same effect. Reheaven skipped rerunning this effect to prevent recursion. Use an updater function or peek() to avoid accidental tracking.")
+			end
+		end
 		pendingValue = value
 		if batchDepth ~= 0 then
 			if not hasTargets then
@@ -357,6 +370,15 @@ local function signal<T>(initialValue: T, equals: Equals<T>?): (Getter<T>, Sette
 			if directEffectNode ~= NIL then
 				local effectFlags = getFlags(directEffectNode)
 				if effectFlags ~= NONE then
+					if selfWriteEffect and directEffectNode == writingEffect then
+						currentValue = value
+						pendingValue = value
+						nodeValue[node] = value
+						nodePendingValue[node] = value
+						setFlags(node, MUTABLE)
+						return value
+					end
+					
 					if bit32.band(effectFlags, QUEUED) ~= 0 then
 						currentValue = value
 						pendingValue = value
@@ -404,6 +426,10 @@ local function signal<T>(initialValue: T, equals: Equals<T>?): (Getter<T>, Sette
 			return value
 		end
 		if directEffectNode ~= NIL and notifyIndex == 0 and hasSingleTarget(node) then
+			if selfWriteEffect and directEffectNode == writingEffect then
+				commitImmediate(value)
+				return value
+			end
 			if getFlags(directEffectNode) ~= NONE then
 				commitImmediate(value)
 				if directComputedMarkDirty then directComputedMarkDirty() end
