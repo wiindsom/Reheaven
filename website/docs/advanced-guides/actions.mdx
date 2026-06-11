@@ -1,0 +1,231 @@
+---
+sidebar_position: 2
+title: Actions
+---
+
+# Actions
+
+As projects grow, passing setters everywhere can make state changes difficult to follow.
+
+Instead, we resort to something called **actions**.
+
+:::tip[Key Point]
+Actions centralize state changes into named functions.
+:::
+
+:::note[Credit]
+This action-based approach was suggested by littensy as a way to keep reactive state changes easier to track and manage.
+:::
+
+## Why Actions?
+
+Setters are powerful, but they are also very direct.
+
+If every script can freely call setters, it becomes harder to answer simple questions:
+
+- Where can coins change?
+- What code damages the player?
+- What happens when an item is purchased?
+- Which systems are allowed to change round state?
+
+Actions solve this by giving state changes a clear place to live.
+
+## Without Actions
+
+A small project might start like this:
+
+```lua
+setCoins(100)
+setLevel(5)
+setHealth(50)
+```
+
+This is fine at first.
+
+However, as the project grows, these setters can end up scattered across UI scripts, tools, remotes, abilities, and systems.
+
+## With Actions
+
+An action is just a function that describes a state change.
+
+```lua showLineNumbers
+local function addCoins(amount)
+    setCoins(coins() + amount)
+end
+
+local function damage(amount)
+    setHealth(health() - amount)
+end
+```
+
+Now the code becomes:
+
+```lua
+addCoins(100)
+damage(25)
+```
+
+The intent is much clearer.
+
+## Functional Updates
+
+When the new value depends on the current value, functional updates are often safer.
+
+```lua showLineNumbers
+local function addCoins(amount)
+    setCoins(function(current)
+        return current + amount
+    end)
+end
+```
+
+This is especially useful when multiple updates can happen close together.
+
+Both styles are valid:
+
+```lua showLineNumbers
+setCoins(coins() + 100)
+
+setCoins(function(current)
+    return current + 100
+end)
+```
+
+Use the one that makes the state change easiest to understand.
+
+## Example Module
+
+In a larger project, actions usually live in a ModuleScript.
+
+```lua title="PlayerState.lua" showLineNumbers
+local Reheaven = require(path.to.Reheaven)
+
+local health, setHealth = Reheaven.signal(100)
+local maxHealth, setMaxHealth = Reheaven.signal(100)
+local coins, setCoins = Reheaven.signal(0)
+local level, setLevel = Reheaven.signal(1)
+
+local PlayerState = {
+    health = health;
+    maxHealth = maxHealth;
+    coins = coins;
+    level = level;
+}
+
+function PlayerState.damage(amount: number)
+    setHealth(function(current)
+        return math.max(current - amount, 0)
+    end)
+end
+
+function PlayerState.heal(amount: number)
+    setHealth(function(current)
+        return math.min(current + amount, maxHealth())
+    end)
+end
+
+function PlayerState.addCoins(amount: number)
+    setCoins(function(current)
+        return current + amount
+    end)
+end
+
+function PlayerState.levelUp()
+    setLevel(level() + 1)
+    setHealth(maxHealth())
+end
+
+return PlayerState
+```
+
+Now other scripts can use the state without receiving every setter.
+
+```lua showLineNumbers
+local PlayerState = require(path.to.PlayerState)
+
+PlayerState.damage(25)
+PlayerState.addCoins(100)
+
+print(PlayerState.health())
+```
+
+## Actions Can Contain Rules
+
+Actions are also a good place to protect state from invalid values.
+
+```lua showLineNumbers
+function PlayerState.spendCoins(amount)
+    if coins() < amount then
+        return false
+    end
+
+    setCoins(function(current)
+        return current - amount
+    end)
+
+    return true
+end
+```
+
+Usage:
+
+```lua showLineNumbers
+local success = PlayerState.spendCoins(250)
+
+if not success then
+    print("Not enough coins")
+end
+```
+
+Instead of every script checking coin logic differently, the rule lives in one action.
+
+## Actions and Batch
+
+Actions work well with `batch` when one action updates several signals.
+
+```lua showLineNumbers
+local shopOpen, setShopOpen = Reheaven.signal(true)
+local equippedItem, setEquippedItem = Reheaven.signal(nil)
+local purchaseMessage, setPurchaseMessage = Reheaven.signal("")
+
+function PlayerState.purchaseSword()
+    local cost = 100
+
+    if coins() < cost then
+        setPurchaseMessage("Not enough coins")
+        return false
+    end
+
+    Reheaven.batch(function()
+        setCoins(function(current)
+            return current - cost
+        end)
+
+        setEquippedItem("Iron Sword")
+        setShopOpen(false)
+        setPurchaseMessage("Purchased Iron Sword!")
+    end)
+
+    return true
+end
+```
+
+The action represents one player decision, while the batch keeps the state updates together.
+
+## Why Use Actions?
+
+Actions provide several benefits:
+
+- state changes become easier to find
+- logic is easier to reuse
+- rules stay in one place
+- fewer setters need to be passed around
+- state flow becomes easier to follow
+
+:::warning[Not a Requirement]
+Actions are not required, but they become **EXTREMELY** useful as your project grows and direct setters become harder to manage.
+:::
+
+## Next Steps
+
+Next, learn how scopes can be used to organize larger features and systems.

@@ -1,0 +1,151 @@
+---
+sidebar_position: 6
+title: Replication
+---
+
+# Replication
+
+Replication is planned for a future version of Reheaven (if all goes well, v2).
+
+This page shows possible usage patterns, not a final API.
+
+:::warning[Future API]
+The examples below are conceptual and may change in a future version.
+:::
+
+## Shared State
+
+A common pattern may be placing state inside shared modules.
+
+```lua title="PlayerState.lua" showLineNumbers
+local health, setHealth = Reheaven.signal(0)
+local coins, setCoins = Reheaven.signal(0)
+local xp, setXp = Reheaven.signal(0)
+
+return {
+    health = health;
+    setHealth = setHealth;
+
+    coins = coins;
+    setCoins = setCoins;
+
+    xp = xp;
+    setXp = setXp;
+}
+```
+
+Both the server and client can require the same module.
+
+## Registering State
+
+The server chooses which signals should be replicated.
+
+```lua title="Server.lua" showLineNumbers
+local PlayerState = require(ReplicatedStorage.Shared.PlayerState)
+
+Reheaven.replicate(player, {
+    health = PlayerState.health;
+    coins = PlayerState.coins;
+})
+```
+
+In this example, only `health` and `coins` would be sent to the client(not xp).
+
+## Receiving State
+
+The client requires the same shared module.
+
+```lua title="Client.lua" showLineNumbers
+local PlayerState = require(ReplicatedStorage.Shared.PlayerState)
+
+Reheaven.shared(PlayerState)
+```
+
+This allows Reheaven to automatically connect replicated values to their matching setters.
+
+Conceptually:
+
+```txt
+health -> setHealth
+coins -> setCoins
+```
+
+The user does not need to manually register every setter.
+
+## Updating State
+
+The server updates state normally.
+
+```lua title="Server.lua" showLineNumbers
+PlayerState.setHealth(75)
+PlayerState.setCoins(500)
+```
+
+The client state updates automatically.
+
+```lua title="Client.lua" showLineNumbers
+print(PlayerState.health()) -- 75
+print(PlayerState.coins()) -- 500
+```
+
+## Reactive UI
+
+Replicated state behaves exactly like normal Reheaven state.
+
+```lua title="ClientUI.lua" showLineNumbers
+local effect = Reheaven.effect
+
+local PlayerState = require(ReplicatedStorage.Shared.PlayerState)
+
+effect(function()
+    healthLabel.Text = `{PlayerState.health()}`
+end)
+
+effect(function()
+    coinsLabel.Text = `{PlayerState.coins()}`
+end)
+```
+
+No special UI code is required.
+
+## Client Computeds
+
+In most cases, replicate source signals and derive computed values locally.
+
+Server:
+
+```lua title="Server.lua" showLineNumbers
+Reheaven.replicate(player, {
+    health = PlayerState.health;
+})
+```
+
+Client:
+
+```lua title="Client.lua" showLineNumbers
+local PlayerState = require(ReplicatedStorage.Shared.PlayerState)
+
+Reheaven.shared(PlayerState)
+
+local alive = Reheaven.computed(function()
+    return PlayerState.health() > 0
+end)
+```
+
+This keeps replication smaller while still allowing clients to derive additional state.
+
+## Cleanup
+
+Replication should stop when the player leaves.
+
+```lua title="Server.lua" showLineNumbers
+Players.PlayerRemoving:Connect(function(player)
+    Reheaven.unreplicate(player)
+end)
+```
+
+:::note
+The server owns the real state.
+
+The client owns a mirrored copy.
+:::

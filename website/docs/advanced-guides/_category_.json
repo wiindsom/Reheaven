@@ -1,0 +1,8 @@
+{
+  "label": "Advanced Guides",
+  "position": 4,
+  "link": {
+    "type": "generated-index",
+    "description": "Learn more about what you can do with Reheaven beyond the basics, from scopes and actions to larger reactive architectures."
+  }
+}

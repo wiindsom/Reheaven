@@ -1,0 +1,71 @@
+---
+sidebar_position: 6
+title: Peek
+---
+
+# Peeked Values
+
+Sometimes you want to read a value without making the current reaction depend on it.
+
+:::tip[Key Point]
+Peek is useful when you want to read state without causing extra reruns.
+:::
+
+## Basic Usage
+
+Use `peek` around the value you want to read quietly:
+
+```lua showLineNumbers
+local coins, setCoins = Reheaven.signal(100)
+
+local value = Reheaven.peek(function()
+    return coins()
+end)
+
+print(value) -- 100
+```
+
+## Inside an Effect
+
+Normally, if an `effect` reads a signal, that signal can rerun the effect when it changes.
+
+```lua showLineNumbers
+local coins, setCoins = Reheaven.signal(100)
+local debug, setDebug = Reheaven.signal(false)
+
+local stop = Reheaven.effect(function()
+    print(coins())
+
+    local debugValue = Reheaven.peek(function()
+        return debug()
+    end)
+
+    print(debugValue)
+end)
+```
+
+In this example:
+
+- changing `coins` reruns the effect
+- changing `debug` does not rerun the effect
+
+## When to Use Peek
+
+Use `peek` for values that are helpful to read, but should not control updates.
+
+Good examples:
+
+- debug flags
+- logging values
+- optional settings
+- one-time reads
+
+:::danger[Do Not Overuse Peek]
+Most state reads inside an `effect` should be tracked.
+
+Only use `peek` when you intentionally do not want that value to trigger updates.
+:::
+
+## Next Steps
+
+Next, learn how `scope` helps clean up multiple reactive items together.

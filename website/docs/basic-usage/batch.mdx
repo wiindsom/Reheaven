@@ -1,0 +1,111 @@
+---
+sidebar_position: 5
+title: Batch
+---
+
+# Batching Values
+
+Batching groups multiple state updates into one update cycle.
+
+:::tip[Key Point]
+Batching is useful when one piece of code updates several signals at once.
+:::
+
+## Why Use Batch?
+
+Many actions change more than one value.
+
+For example, a shop purchase might:
+
+- lower the player's coins
+- add bonus gems
+- close the shop
+
+With `batch`, Reheaven waits until the callback finishes, then updates using the final state.
+
+```lua showLineNumbers
+local coins, setCoins = Reheaven.signal(500)
+local gems, setGems = Reheaven.signal(25)
+local shopOpen, setShopOpen = Reheaven.signal(true)
+
+Reheaven.batch(function()
+    setCoins(400)
+    setGems(30)
+    setShopOpen(false)
+end)
+```
+
+All of these updates belong to the same action, so batching keeps them together.
+
+## Final Value Wins
+
+If the same signal is set multiple times inside a batch, the last value is the one that matters.
+
+```lua showLineNumbers
+local coins, setCoins = Reheaven.signal(0)
+
+Reheaven.batch(function()
+    setCoins(10)
+    setCoins(20)
+    setCoins(30)
+end)
+
+print(coins()) -- 30
+```
+
+## Effects Run Once
+
+Batching helps avoid repeated effect runs while several values are changing.
+
+```lua showLineNumbers
+local stop = Reheaven.effect(function()
+    print("Coins:", coins())
+end)
+
+Reheaven.batch(function()
+    setCoins(10)
+    setCoins(20)
+    setCoins(30)
+end)
+
+-- Prints once with 30
+```
+
+## Returning Values
+
+`batch` returns whatever the callback returns.
+
+This is useful when you want to group state updates and still return a result from the action.
+
+```lua showLineNumbers
+local result = Reheaven.batch(function()
+    setCoins(100)
+    return "done"
+end)
+
+print(result) -- done
+```
+
+For most code, you will use `batch` for the updates, not the return value. But that option is always up :D
+
+## When to Use Batch
+
+Use `batch` when several updates should clearly be treated as one larger change.
+
+Good examples:
+
+- buying an item
+- resetting player stats
+- applying round rewards
+- loading saved data
+- updating several UI states at once
+
+:::tip[Do Not Overuse Batch]
+You do not need `batch` for every small update.
+
+For one or two simple setters, the difference is usually negligible. `batch` becomes more useful when one action updates several pieces of state at once, especially around 4-5 updates or more.
+:::
+
+## Next Steps
+
+Next, learn how `peek` lets you read state without subscribing to it.

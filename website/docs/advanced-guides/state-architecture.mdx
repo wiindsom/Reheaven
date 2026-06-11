@@ -1,0 +1,344 @@
+---
+sidebar_position: 7
+title: State Architecture
+---
+
+# State Architecture
+
+As projects grow, it helps to have a consistent place for your state and actions.
+
+:::tip[Key Point]
+Reheaven does not replace your architecture. It works alongside it.
+:::
+
+You can use Reheaven with:
+
+- OOP
+- functional modules
+- services
+- controllers
+- frameworks
+- custom architectures
+
+Reheaven simply provides reactive state.
+
+## State Modules
+
+A common pattern is to place state inside dedicated modules.
+
+```lua title="PlayerState.lua" showLineNumbers
+local Reheaven = require(path.to.Reheaven)
+
+local health, setHealth = Reheaven.signal(100)
+local coins, setCoins = Reheaven.signal(0)
+
+return {
+    health = health;
+    coins = coins;
+
+    setHealth = setHealth;
+    setCoins = setCoins;
+}
+```
+
+This creates a central location for player-related state.
+
+## Action Modules
+
+Actions are often separated from state.
+
+```lua title="PlayerActions.lua" showLineNumbers
+local PlayerState = require(script.Parent.PlayerState)
+
+local PlayerActions = {}
+
+function PlayerActions.damage(amount)
+    PlayerState.setHealth(function(current)
+        return current - amount
+    end)
+end
+
+function PlayerActions.addCoins(amount)
+    PlayerState.setCoins(function(current)
+        return current + amount
+    end)
+end
+
+return PlayerActions
+```
+
+This keeps state and state-changing logic organized.
+
+## Suggested Folder Layout
+
+Many projects end up with something similar to:
+
+```txt
+ReplicatedStorage
+└─ Shared
+   ├─ State
+   │  ├─ PlayerState.lua
+   │  ├─ ShopState.lua
+   │  └─ RoundState.lua
+   │
+   └─ Actions
+      ├─ PlayerActions.lua
+      ├─ ShopActions.lua
+      └─ RoundActions.lua
+```
+
+There is no required structure.
+
+The goal is simply to make state easier to find.
+
+## Reheaven and OOP
+
+Reheaven does not replace classes.
+
+If your project already uses OOP, a class can still own reactive state.
+
+```lua title="Player.lua" showLineNumbers
+local Player = {}
+Player.__index = Player
+
+function Player.new()
+    local self = setmetatable({}, Player)
+
+    self.health, self.setHealth = Reheaven.signal(100)
+    self.coins, self.setCoins = Reheaven.signal(0)
+
+    return self
+end
+
+function Player:damage(amount)
+    self.setHealth(function(current)
+        return current - amount
+    end)
+end
+
+function Player:addCoins(amount)
+    self.setCoins(function(current)
+        return current + amount
+    end)
+end
+
+return Player
+```
+
+In this style, OOP handles the object shape and methods.
+
+Reheaven handles the reactive values.
+
+## Reheaven Without Metatables
+
+You can also create class-like objects with plain functions and tables.
+
+This is useful when you want multiple independent objects without using `__index` or `setmetatable`.
+
+```lua title="PlayerFactory.lua" showLineNumbers
+local function createPlayer()
+    local health, setHealth = Reheaven.signal(100)
+    local coins, setCoins = Reheaven.signal(0)
+
+    local function damage(amount)
+        setHealth(function(current)
+            return current - amount
+        end)
+    end
+
+    local function addCoins(amount)
+        setCoins(function(current)
+            return current + amount
+        end)
+    end
+
+    return {
+        health = health;
+        coins = coins;
+
+        damage = damage;
+        addCoins = addCoins;
+    }
+end
+
+return createPlayer
+```
+
+Usage:
+
+```lua title="Example.lua" showLineNumbers
+local createPlayer = require(path.to.PlayerFactory)
+
+local player = createPlayer()
+
+player.damage(25)
+player.addCoins(100)
+
+print(player.health())
+print(player.coins())
+```
+
+This gives you reusable objects without metatables.
+
+## Composition
+
+Composition means building larger objects or systems from smaller pieces.
+
+Instead of making one object inherit from another, you create small modules and combine them.
+
+```lua title="Character.lua" showLineNumbers
+local function createCharacter()
+    local health, setHealth = Reheaven.signal(100)
+
+    local function damage(amount)
+        setHealth(function(current)
+            return current - amount
+        end)
+    end
+
+    return {
+        health = health;
+        damage = damage;
+    }
+end
+
+return createCharacter
+```
+
+```lua title="Wallet.lua" showLineNumbers
+local function createWallet()
+    local coins, setCoins = Reheaven.signal(0)
+
+    local function addCoins(amount)
+        setCoins(function(current)
+            return current + amount
+        end)
+    end
+
+    return {
+        coins = coins;
+        addCoins = addCoins;
+    }
+end
+
+return createWallet
+```
+
+```lua title="Player.lua" showLineNumbers
+local createCharacter = require(path.to.Character)
+local createWallet = require(path.to.Wallet)
+
+local function createPlayer()
+    local character = createCharacter()
+    local wallet = createWallet()
+
+    return {
+        health = character.health;
+        damage = character.damage;
+
+        coins = wallet.coins;
+        addCoins = wallet.addCoins;
+    }
+end
+
+return createPlayer
+```
+
+Here, `Player` is built from `Character` and `Wallet`.
+
+This avoids inheritance chains while still letting you reuse behavior.
+
+## Reheaven and Functional Programming
+
+Reheaven also works naturally with functional modules(*which I personally and many others go with because its just that good*).
+
+Instead of creating an object with methods, a module can expose state and functions directly.
+
+```lua title="PlayerModule.lua" showLineNumbers
+local Reheaven = require(path.to.Reheaven)
+
+local health, setHealth = Reheaven.signal(100)
+local coins, setCoins = Reheaven.signal(0)
+
+local function damage(amount)
+    setHealth(function(current)
+        return current - amount
+    end)
+end
+
+local function addCoins(amount)
+    setCoins(function(current)
+        return current + amount
+    end)
+end
+
+return {
+    health = health;
+    coins = coins;
+
+    damage = damage;
+    addCoins = addCoins;
+}
+```
+
+Usage:
+
+```lua title="Example.lua" showLineNumbers
+local Player = require(path.to.PlayerModule)
+
+Player.damage(25)
+Player.addCoins(100)
+
+print(Player.health())
+print(Player.coins())
+```
+
+This style is simple when you only need one shared module of state and actions.
+
+## Shared and Client State
+
+Not all state belongs in the same place.
+
+Examples:
+
+```txt
+Shared State
+- round status
+- match timer
+- inventory data
+
+Client State
+- selected menu
+- UI visibility
+- local settings
+```
+
+Try to keep state close to the systems that own it.
+
+## Architecture Is a Tool
+
+There is no perfect architecture.
+
+Some projects use OOP.
+
+Some use functional modules.
+
+Some use frameworks.
+
+Some use none of the above.
+
+Choose whatever structure makes the project easiest to maintain.
+
+:::tip[Simple Rule]
+Use the architecture your project already fits.
+
+Reheaven can work with OOP, functional modules, composition, services, controllers, frameworks, and ECS architectures like Jecs or Matter.
+
+It is not meant to replace your structure. It gives your structure reactive state.
+:::
+
+## Final Thoughts
+
+At this point, you have the core tools and patterns needed to use Reheaven in small-large projects.
+
+Start simple, keep state easy to find, and choose the structure that makes your game easiest to maintain.

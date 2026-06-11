@@ -1,0 +1,202 @@
+---
+sidebar_position: 5
+title: DataStore Flow
+---
+
+# DataStore Flow
+
+This example shows a simple DataStore flow with Reheaven.
+
+Data is still loaded, edited, and saved as normal Lua tables.
+
+Reheaven is only used to mirror selected data into reactive state.
+
+:::tip[Key Point]
+Use plain tables for saving data. Use Reheaven for UI, replication, and reactive runtime behavior.
+:::
+
+## Plain Data
+
+Your saved data can stay as a normal table.
+
+```lua title="DefaultData.lua" showLineNumbers
+local function createDefaultData()
+    return {
+        coins = 0;
+        level = 1;
+        xp = 0;
+    }
+end
+```
+
+## Reactive Mirror
+
+Create signals for the values you want to display or react to.
+
+```lua title="PlayerDataMirror.lua" showLineNumbers
+local coins, setCoins = Reheaven.signal(0)
+local level, setLevel = Reheaven.signal(1)
+local xp, setXP = Reheaven.signal(0)
+local loaded, setLoaded = Reheaven.signal(false)
+
+local progress = Reheaven.computed(function()
+    return xp() / 100
+end)
+```
+
+## Loading Data
+
+Load the plain table first.
+
+Then copy the loaded values into the reactive mirror.
+
+```lua title="LoadData.lua" showLineNumbers
+local playerData = {}
+
+local function loadPlayerData(player)
+    local savedData = DataStore:GetAsync(player.UserId)
+
+    playerData[player] = savedData or createDefaultData()
+
+    local data = playerData[player]
+
+    Reheaven.batch(function()
+        setCoins(data.coins)
+        setLevel(data.level)
+        setXP(data.xp)
+        setLoaded(true)
+    end)
+end
+```
+
+## Editing Data
+
+Change the plain table directly.
+
+Then update the reactive mirror.
+
+```lua title="PlayerDataActions.lua" showLineNumbers
+local function addCoins(player, amount)
+    local data = playerData[player]
+
+    if not data then
+        return
+    end
+
+    data.coins += amount
+
+    setCoins(data.coins)
+end
+
+local function addXP(player, amount)
+    local data = playerData[player]
+
+    if not data then
+        return
+    end
+
+    data.xp += amount
+
+    if data.xp >= 100 then
+        data.xp = 0
+        data.level += 1
+    end
+
+    Reheaven.batch(function()
+        setXP(data.xp)
+        setLevel(data.level)
+    end)
+end
+```
+
+## Saving Data
+
+Use `UpdateAsync` to save the plain table.
+
+```lua title="SaveData.lua" showLineNumbers
+local function savePlayerData(player)
+    local data = playerData[player]
+
+    if not data then
+        return
+    end
+
+    DataStore:UpdateAsync(player.UserId, function()
+        return {
+            coins = data.coins;
+            level = data.level;
+            xp = data.xp;
+        }
+    end)
+end
+```
+
+## UI From Mirror State
+
+The UI reads the reactive mirror, not the DataStore table directly.
+
+```lua title="PlayerDataUI.lua" showLineNumbers
+local effect = Reheaven.effect
+
+effect(function()
+    coinsLabel.Text = `Coins: {coins()}`
+    levelLabel.Text = `Level: {level()}`
+    xpLabel.Text = `XP: {xp()}`
+end)
+
+effect(function()
+    xpBar.Size = UDim2.fromScale(progress(), 1)
+end)
+
+effect(function()
+    loadingFrame.Visible = not loaded()
+end)
+```
+
+## Auto Save
+
+Autosave still saves the plain table.
+
+```lua title="AutoSave.lua" showLineNumbers
+task.spawn(function()
+    while true do
+        task.wait(60)
+
+        for _, player in Players:GetPlayers() do
+            savePlayerData(player)
+        end
+    end
+end)
+```
+
+## Player Leaving
+
+Save the plain data, then clean it up.
+
+```lua title="PlayerRemoving.lua" showLineNumbers
+Players.PlayerRemoving:Connect(function(player)
+    savePlayerData(player)
+
+    playerData[player] = nil
+end)
+```
+
+## Data Flow
+
+```txt
+DataStore loads plain table
+↓
+Plain table is edited by game logic
+↓
+Reactive mirror updates
+↓
+UI or replication reacts
+↓
+Plain table is saved with UpdateAsync
+```
+
+:::danger[Do Not Save Reactive Objects]
+Do not save signal getters, computed values, effects, or cleanup functions.
+
+Save plain data only.
+:::

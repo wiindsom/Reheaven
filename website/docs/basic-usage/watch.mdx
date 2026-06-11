@@ -1,0 +1,99 @@
+---
+sidebar_position: 4
+title: Watch
+---
+
+# Watchers
+
+A watcher reacts to one specific signal or computed value.
+
+It is similar to connecting to a Roblox signal with `:Connect()`, except the thing being watched is state, not an event.
+
+:::tip[Key Point]
+Watchers are useful for reacting to one signal or computed value.
+:::
+
+Unlike `effect`, a watcher does not automatically track everything it reads. You choose exactly what value it should watch.
+
+```lua showLineNumbers
+local coins, setCoins = Reheaven.signal(100)
+
+local stop = Reheaven.watch(coins, function(value, previous)
+    print("Coins changed:", previous, "->", value)
+end)
+```
+
+## Watch Does Not Run Immediately
+
+`watch` does not call the callback when it is created.
+
+It waits until the watched value changes.
+
+```lua showLineNumbers
+local coins, setCoins = Reheaven.signal(100)
+
+Reheaven.watch(coins, function(value, previous)
+    print(value, previous)
+end)
+
+-- Nothing prints yet.
+
+setCoins(150)
+
+-- 150 100
+```
+
+## Previous Value
+
+The callback receives the new value first, then the previous value.
+
+```lua showLineNumbers
+Reheaven.watch(coins, function(value, previous)
+    print("New:", value)
+    print("Old:", previous)
+end)
+```
+
+## Watching Computeds
+
+Watchers can also observe computed values.
+
+```lua showLineNumbers
+local canBuyItem = Reheaven.computed(function()
+    return coins() >= 50
+end)
+
+local stop = Reheaven.watch(canBuyItem, function(value, previous)
+    print("Can buy changed:", previous, "->", value)
+end)
+```
+
+## Stopping a Watcher
+
+`watch` returns a cleanup function.
+
+Call it when you no longer want updates.
+
+```lua showLineNumbers
+local stop = Reheaven.watch(coins, function(value)
+    print(value)
+end)
+
+stop()
+```
+
+## Watch vs Effect
+
+Use `watch` when you want to react to one specific signal or computed value.
+
+Use `effect` when the function reads state directly and you want Reheaven to track it automatically.
+
+:::tip[Simple Rule]
+Use `watch` when you already know what to watch.
+
+Use `effect` when you want Reheaven to figure it out from the values being read.
+:::
+
+## Next Steps
+
+Next, learn how `batch` groups multiple updates together.

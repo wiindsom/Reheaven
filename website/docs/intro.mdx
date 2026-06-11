@@ -1,0 +1,58 @@
+---
+sidebar_position: 1
+title: Introduction
+---
+
+# What is Reheaven?
+
+Reheaven is a fine-grained reactive state system for Roblox(partially inspired by Charm & Alien Signals. Thanks, littensy + stackblitz :3)
+
+It helps you model game state as values and relationships instead of manually wiring every update through events.
+
+This style is common in user interfaces, where one state change can update text, buttons, menus, and other visual elements automatically. Reheaven brings that same idea into Roblox game development for things like inventory, settings, round logic, character stats, abilities, and UI.
+
+:::danger[Not a Traditional Roblox Signal]
+Reheaven is not an event signal library.
+
+Traditional signal libraries are great for broadcasting events:
+
+- A player joined
+- A button was clicked
+- An ability was activated
+
+Reheaven is for a different kind of problem. Its signals store state, and other values can react to or derive from that state.
+
+Use Reheaven when you want state that can react to other state automatically.
+Otherwise, use a traditional signal library when you only need events. Decent/known options include [GoodSignal](https://github.com/stravant/goodsignal), [LemonSignal](https://github.com/Data-Oriented-House/LemonSignal), [Zignal](https://github.com/Z0SC/Zignal), etc.
+:::
+
+## Why Reheaven?
+
+Game state can become messy fast.
+
+Coins, health, inventory, UI, settings, round status, character stats, and abilities often depend on each other. Without a clear state system, those relationships can turn into scattered events, repeated update code, and bugs that are harder to trace.
+
+Reheaven gives you a small set of lightweight tools for managing that flow:
+
+- `signal` stores state
+- `computed` derives values
+- `watch` reacts to a specific value
+- `effect` tracks dependencies automatically
+- `batch` groups updates
+- `scope` manages cleanup
+
+## The Core Idea
+
+Instead of thinking only in terms of events, you describe how values relate:
+
+```lua showLineNumbers
+local coins, setCoins = Reheaven.signal(100)
+
+local canBuyItem = Reheaven.computed(function()
+    return coins() >= 50
+end)
+```
+
+Now `canBuyItem` depends on `coins`.
+
+When `coins` changes, Reheaven knows `canBuyItem` may need to update. This lets complex systems be expressed as relationships between values instead of chains of manually connected events.

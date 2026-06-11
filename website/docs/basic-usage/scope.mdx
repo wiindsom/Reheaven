@@ -1,0 +1,133 @@
+---
+sidebar_position: 7
+title: Scope
+---
+
+# Scopes
+
+Scopes help clean up multiple things at once.
+
+:::tip[Key Point]
+Scope is useful when one feature creates several things that should be cleaned together.
+:::
+
+## Automatic Reactive Cleanup
+
+When `effect`, `computed`, or `watch` are created inside a scope, they are automatically cleaned up when the scope is cleaned.
+
+You do not need to manually pass them to `add`.
+
+```lua showLineNumbers
+local cleanupScope = Reheaven.scope(function()
+    local count, setCount = Reheaven.signal(0)
+
+    local double = Reheaven.computed(function()
+        return count() * 2
+    end)
+
+    Reheaven.effect(function()
+        print(double())
+    end)
+
+    Reheaven.watch(count, function(value, previous)
+        print(previous, "->", value)
+    end)
+end)
+
+cleanupScope()
+```
+
+After `cleanupScope()` runs, the computed, effect, and watcher created inside the scope are stopped.
+
+## Adding Other Cleanups
+
+The `add` function is for things Reheaven cannot automatically know about.
+
+Use it for Roblox connections, instances, threads, or custom cleanup functions.
+
+### Connections
+
+```lua showLineNumbers
+local cleanupScope = Reheaven.scope(function(add)
+    local connection = button.MouseButton1Click:Connect(function()
+        print("Clicked")
+    end)
+
+    add(connection)
+end)
+```
+
+### Instances
+
+```lua showLineNumbers
+local cleanupScope = Reheaven.scope(function(add)
+    local part = Instance.new("Part")
+    part.Parent = workspace
+
+    add(part)
+end)
+```
+
+### Threads
+
+```lua showLineNumbers
+local cleanupScope = Reheaven.scope(function(add)
+    local thread = task.spawn(function()
+        while true do
+            print("Running")
+            task.wait(1)
+        end
+    end)
+
+    add(thread)
+end)
+```
+
+### Custom Cleanup Functions
+
+```lua showLineNumbers
+local cleanupScope = Reheaven.scope(function(add)
+    add(function()
+        print("Custom cleanup")
+    end)
+end)
+```
+
+When the scope is cleaned, Reheaven disposes everything that was added.
+
+```lua
+cleanupScope()
+```
+
+## Returning a Cleanup
+
+A scope callback can also return a cleanup function.
+
+```lua showLineNumbers
+local cleanupScope = Reheaven.scope(function()
+    return function()
+        print("Scope cleaned")
+    end
+end)
+
+cleanupScope()
+```
+
+## When to Use Scope
+
+Use `scope` when several cleanups belong to the same feature.
+
+Good examples:
+
+- UI screens
+- temporary effects
+- character systems
+- round systems
+- tool logic
+- ability logic
+
+:::tip[Simple Rule]
+Create reactive things inside the scope.
+
+Use `add` only for outside things like connections, instances, threads, or custom cleanup functions.
+:::

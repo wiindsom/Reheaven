@@ -1,0 +1,270 @@
+---
+sidebar_position: 1
+title: Combat System
+---
+
+# Combat System
+
+This example shows a simple combat system using Reheaven.
+
+The server owns the real combat state.
+
+The client reacts to that state and updates the UI.
+
+:::tip[Key Point]
+Combat actions change state. The UI reacts automatically.
+:::
+
+## Combat State
+
+Combat-related values naturally belong together.
+
+```lua title="CombatState.lua" showLineNumbers
+local combatState, setCombatState = Reheaven.signal({
+    health = 100;
+    maxHealth = 100;
+
+    blocking = false;
+    stunned = false;
+    combo = 0;
+})
+```
+
+Other values can be derived automatically.
+
+```lua title="CombatDerived.lua" showLineNumbers
+local computed = Reheaven.computed
+
+local alive = computed(function()
+    return combatState().health > 0
+end)
+
+local healthPercent = computed(function()
+    local state = combatState()
+
+    return state.health / state.maxHealth
+end)
+
+local canAct = computed(function()
+    local state = combatState()
+
+    return state.health > 0 and not state.stunned
+end)
+```
+
+## Combat Actions
+
+Actions describe how combat state changes.
+
+```lua title="CombatActions.lua" showLineNumbers
+local function damage(amount)
+    if not alive() then
+        return
+    end
+
+    local current = combatState()
+    local nextState = table.clone(current)
+
+    if nextState.blocking then
+        amount *= 0.5
+    end
+
+    nextState.health = math.max(nextState.health - amount, 0)
+
+    setCombatState(nextState)
+end
+
+local function heal(amount)
+    local current = combatState()
+    local nextState = table.clone(current)
+
+    nextState.health = math.min(nextState.health + amount, nextState.maxHealth)
+
+    setCombatState(nextState)
+end
+
+local function setBlockState(value)
+    local current = combatState()
+    local nextState = table.clone(current)
+
+    nextState.blocking = value
+
+    setCombatState(nextState)
+end
+```
+
+:::note[Table State]
+`combatState` is a table signal, so the examples clone the current table before changing it.
+
+This keeps updates explicit:
+
+```lua showLineNumbers
+local current = combatState()
+local nextState = table.clone(current)
+
+nextState.health -= 10
+
+setCombatState(nextState)
+```
+
+This combat state is flat, so `table.clone` is enough.
+
+If the state had nested tables, you would need to clone those nested tables too, or use a `deepClone` helper.
+:::
+
+## Stunning
+
+Stun state can temporarily prevent actions.
+
+```lua title="CombatStun.lua" showLineNumbers
+local function stun(duration)
+    local current = combatState()
+    local nextState = table.clone(current)
+
+    nextState.stunned = true
+    nextState.blocking = false
+
+    setCombatState(nextState)
+
+    task.delay(duration, function()
+        local latest = combatState()
+        local afterStun = table.clone(latest)
+
+        afterStun.stunned = false
+
+        setCombatState(afterStun)
+    end)
+end
+```
+
+## Combo Counter
+
+A combo can increase with each hit and reset after the third hit.
+
+```lua title="CombatCombo.lua" showLineNumbers
+local function registerHit()
+    if not canAct() then
+        return
+    end
+
+    local current = combatState()
+    local nextState = table.clone(current)
+
+    nextState.combo += 1
+
+    if nextState.combo >= 3 then
+        nextState.combo = 0
+        nextState.stunned = true
+    end
+
+    setCombatState(nextState)
+
+    if nextState.stunned then
+        task.delay(1, function()
+            local latest = combatState()
+            local afterStun = table.clone(latest)
+
+            afterStun.stunned = false
+
+            setCombatState(afterStun)
+        end)
+    end
+end
+```
+
+## Server Validation
+
+The client can request actions.
+
+The server decides whether those actions are valid.
+
+```lua title="CombatServer.lua" showLineNumbers
+AttackRemote.OnServerEvent:Connect(function(player)
+    registerHit()
+    damage(25)
+end)
+
+BlockRemote.OnServerEvent:Connect(function(player, state)
+    setBlockState(state)
+end)
+```
+
+This is intentionally simplified.
+
+A real combat system would likely validate things such as:
+
+- distance
+- cooldowns
+- hitboxes
+- targets
+- character state
+
+## Combat UI
+
+The UI reacts to combat state automatically.
+
+```lua title="CombatUI.lua" showLineNumbers
+local effect = Reheaven.effect
+
+effect(function()
+    local state = combatState()
+
+    healthLabel.Text = `{state.health}/{state.maxHealth}`
+    comboLabel.Text = `Combo: {state.combo}`
+end)
+
+effect(function()
+    local state = combatState()
+
+    blockIcon.Visible = state.blocking
+    stunnedIcon.Visible = state.stunned
+end)
+```
+
+You never need to manually refresh the UI.
+
+Updating the state is enough.
+
+## Client Input
+
+The client can request combat actions.
+
+```lua title="CombatInput.lua" showLineNumbers
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then
+        return
+    end
+
+    if input.KeyCode == Enum.KeyCode.F then
+        BlockRemote:FireServer(true)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.F then
+        BlockRemote:FireServer(false)
+    end
+end)
+```
+
+## Combat Flow
+
+```txt
+Client Input
+↓
+Remote Event
+↓
+Server Validation
+↓
+Combat Action
+↓
+Combat State Changes
+↓
+UI Reacts
+```
+
+:::danger[Server Authority]
+Do not trust the client for combat decisions.
+
+The client can request actions, but the server should decide what actually happens.
+:::

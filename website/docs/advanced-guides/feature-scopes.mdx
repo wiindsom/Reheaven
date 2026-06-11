@@ -1,0 +1,186 @@
+---
+sidebar_position: 3
+title: Feature Scopes
+---
+
+# Feature Scopes
+
+Scopes become much more powerful when used to represent entire features.
+
+:::tip[Key Point]
+A scope can act as the owner of everything a feature creates.
+:::
+
+Instead of thinking of a scope as just a cleanup utility, think of it as a feature boundary.
+
+When the feature starts, the scope is created.
+
+When the feature ends, the scope is cleaned.
+
+## A Simple Example
+
+Imagine a temporary shop system.
+
+```lua title="Shop.lua" showLineNumbers
+local function createShop()
+    return Reheaven.scope(function(add)
+        print("Shop Opened")
+
+        add(task.spawn(function()
+            while true do
+                task.wait(1)
+                print("Shop Running")
+            end
+        end))
+    end)
+end
+
+local cleanupShop = createShop()
+
+cleanupShop()
+```
+
+When the scope is cleaned, everything owned by the shop is cleaned too.
+
+## Feature State
+
+A feature scope can also create state that only belongs to that feature.
+
+```lua title="RoundTimer.lua" showLineNumbers
+local function createRoundTimer(duration)
+    return Reheaven.scope(function(add)
+        local timeLeft, setTimeLeft = Reheaven.signal(duration)
+
+        Reheaven.effect(function()
+            print("Time left:", timeLeft())
+        end)
+
+        add(task.spawn(function()
+            while timeLeft() > 0 do
+                task.wait(1)
+                setTimeLeft(timeLeft() - 1)
+            end
+        end))
+    end)
+end
+```
+
+The `effect` is tracked automatically because it was created inside the scope.
+
+The timer thread still uses `add`, because threads are not reactive objects.
+
+When the round timer is cleaned, the effect and timer thread are cleaned together.
+
+## Organizing Features
+
+Many systems can be modeled as independent scopes.
+
+Examples:
+
+```txt
+Shop
+Inventory
+Quest
+Round
+Fishing
+Character
+Tool
+```
+
+Each feature manages its own state, effects, connections, and cleanup.
+
+## Nested Features
+
+Scopes can also create other feature scopes.
+
+For example, a match can own a scoreboard and a timer.
+
+```lua title="Scoreboard.lua" showLineNumbers
+local function createScoreboard()
+    return Reheaven.scope(function()
+        Reheaven.effect(function()
+            print("Update scoreboard")
+        end)
+    end)
+end
+```
+
+```lua title="MatchTimer.lua" showLineNumbers
+local function createMatchTimer()
+    return Reheaven.scope(function(add)
+        add(task.spawn(function()
+            while true do
+                task.wait(1)
+                print("Tick")
+            end
+        end))
+    end)
+end
+```
+
+```lua title="Match.lua" showLineNumbers
+local function createMatch()
+    return Reheaven.scope(function(add)
+        add(createScoreboard())
+        add(createMatchTimer())
+    end)
+end
+```
+
+Cleaning the match also cleans the scoreboard and timer.
+
+This is pseudocode, but the idea is what matters: **larger features can own smaller features**.
+
+This is also known as... COMPOSITIONNNN!!!!
+
+## Why Use Feature Scopes?
+
+Without scopes, cleanup often becomes scattered.
+
+```lua
+stopEffect()
+stopWatcher()
+connection:Disconnect()
+part:Destroy()
+task.cancel(thread)
+```
+
+As features grow, these cleanups become harder to manage.
+
+With scopes:
+
+```lua
+cleanupFeature()
+```
+
+Everything is cleaned together.
+
+## A Useful Mindset
+
+Instead of asking:
+
+```txt
+What should this scope clean up?
+```
+
+Ask:
+
+```txt
+What does this scope own?
+```
+
+The answer is usually:
+
+- effects
+- watchers
+- computeds
+- connections
+- instances
+- threads
+- child features
+
+Anything owned by the feature should usually belong to its scope.
+
+## Next Steps
+
+Next, learn how Reheaven can be used to drive reactive user interfaces.

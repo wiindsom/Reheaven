@@ -1,0 +1,208 @@
+---
+sidebar_position: 4
+title: Reactive UI
+---
+
+# Reactive User Interfaces
+
+Reactive UI does not require a special UI framework.
+
+You can use Reheaven with normal Roblox UI objects like `TextLabel`, `Frame`, `TextButton`, and `ScreenGui`.
+
+:::tip[Key Point]
+Reactive UI means state changes first, then the UI updates from that state.
+:::
+
+## Basic Label Updates
+
+A simple example is keeping a `TextLabel` synced with coins.
+
+```lua title="CoinsUI.lua" showLineNumbers
+local coins, setCoins = Reheaven.signal(0)
+
+Reheaven.effect(function()
+    coinsLabel.Text = `Coins: {coins()}`
+end)
+```
+
+Now the label updates whenever `coins` changes.
+
+```lua
+setCoins(100)
+```
+
+You do not need to manually update the label everywhere coins change.
+
+## Visibility From State
+
+UI visibility can also come from state.
+
+```lua title="ShopUI.lua" showLineNumbers
+local shopOpen, setShopOpen = Reheaven.signal(false)
+
+Reheaven.effect(function()
+    shopFrame.Visible = shopOpen()
+end)
+```
+
+Then buttons can change the state:
+
+```lua title="ShopButtons.lua" showLineNumbers
+openButton.MouseButton1Click:Connect(function()
+    setShopOpen(true)
+end)
+
+closeButton.MouseButton1Click:Connect(function()
+    setShopOpen(false)
+end)
+```
+
+The flow becomes simple:
+
+```txt
+Button clicked
+State changes
+UI reacts
+```
+
+## Health Bars
+
+Computed values are useful for UI that depends on more than one value.
+
+```lua title="HealthBar.lua" showLineNumbers
+local health, setHealth = Reheaven.signal(75)
+local maxHealth, setMaxHealth = Reheaven.signal(100)
+
+local healthPercent = Reheaven.computed(function()
+    return health() / maxHealth()
+end)
+
+Reheaven.effect(function()
+    local percent = healthPercent()
+
+    healthText.Text = `{math.floor(percent * 100)}%`
+    healthFill.Size = UDim2.fromScale(percent, 1)
+end)
+```
+
+When `health` or `maxHealth` changes, the text and bar update together.
+
+## Buttons From State
+
+Buttons can also react to state.
+
+```lua title="BuyButton.lua" showLineNumbers
+local coins, setCoins = Reheaven.signal(100)
+local itemCost, setItemCost = Reheaven.signal(50)
+
+local canBuy = Reheaven.computed(function()
+    return coins() >= itemCost()
+end)
+
+Reheaven.effect(function()
+    buyButton.Active = canBuy()
+    buyButton.Text = if canBuy() then "Buy" else "Not Enough Coins"
+end)
+```
+
+The button now follows the player's coins.
+
+## Keep Button Logic Small
+
+Button callbacks should usually change state or call actions.
+
+```lua title="ShopActions.lua" showLineNumbers
+local ShopActions = {}
+
+function ShopActions.open()
+    setShopOpen(true)
+end
+
+function ShopActions.close()
+    setShopOpen(false)
+end
+
+function ShopActions.buyItem()
+    if not canBuy() then
+        return
+    end
+
+    Reheaven.batch(function()
+        setCoins(function(current)
+            return current - itemCost()
+        end)
+
+        setShopOpen(false)
+    end)
+end
+
+return ShopActions
+```
+
+Then the button code stays simple:
+
+```lua title="ShopButtons.lua" showLineNumbers
+openButton.MouseButton1Click:Connect(ShopActions.open)
+closeButton.MouseButton1Click:Connect(ShopActions.close)
+buyButton.MouseButton1Click:Connect(ShopActions.buyItem)
+```
+
+## Cleaning Up UI
+
+When a UI screen is removed, clean up its effects and connections.
+
+Scopes are useful for this.
+
+```lua title="CreateInventoryUI.lua" showLineNumbers
+local function createInventoryUI(frame)
+    return Reheaven.scope(function(add)
+        local open, setOpen = Reheaven.signal(false)
+
+        Reheaven.effect(function()
+            frame.Visible = open()
+        end)
+
+        add(toggleButton.MouseButton1Click:Connect(function()
+            setOpen(not open())
+        end))
+    end)
+end
+
+local cleanupInventoryUI = createInventoryUI(inventoryFrame)
+
+-- later
+cleanupInventoryUI()
+```
+
+Effects created inside the scope are cleaned automatically.
+
+Roblox UI connections still use `add`.
+
+## Avoid Scattered UI Updates
+
+Without reactive UI, it is easy to update the same UI from many different places.
+
+```lua
+coinsLabel.Text = "Coins: 100"
+coinsLabel.Text = "Coins: 250"
+coinsLabel.Text = "Coins: 500"
+```
+
+This becomes hard to track as the project grows.
+
+With Reheaven, prefer this pattern:
+
+```txt
+State changes
+Effect updates UI
+```
+
+:::danger[Keep State Outside the UI]
+Avoid treating UI properties like `Text`, `Visible`, or `Size` as your real game state.
+
+Store the real value in Reheaven, then let the UI display that value.
+:::
+
+## Next Steps
+
+Next, learn how Reheaven can be used to organize larger game systems.

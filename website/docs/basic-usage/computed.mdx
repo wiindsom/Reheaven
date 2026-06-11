@@ -1,0 +1,184 @@
+---
+sidebar_position: 2
+title: Computed
+---
+
+# Computed Values
+
+A computed value is a value that is created from other values.
+
+:::tip[Key Point]
+Computed values are useful when one value should come from another value.
+:::
+
+For example, instead of manually storing whether a player can buy an item, you can let Reheaven calculate it from their coins.
+
+```lua showLineNumbers
+local coins, setCoins = Reheaven.signal(100)
+
+local canBuyItem = Reheaven.computed(function()
+    return coins() >= 50
+end)
+```
+
+## Reading a Computed
+
+Read a computed value by calling it like a function:
+
+```lua
+print(canBuyItem()) -- true
+```
+
+If the coins change, the computed value can change too:
+
+```lua
+setCoins(25)
+
+print(canBuyItem()) -- false
+```
+
+## Why Use Computed?
+
+Without `computed`, you might write code like this:
+
+```lua showLineNumbers
+local coins = 100
+local canBuyItem = coins >= 50
+
+coins = 25
+canBuyItem = coins >= 50
+```
+
+That works, but you have to remember to update `canBuyItem` every time `coins` changes.
+
+With Reheaven, you describe how the value is calculated once:
+
+```lua showLineNumbers
+local canBuyItem = Reheaven.computed(function()
+    return coins() >= 50
+end)
+```
+
+Now Reheaven handles the rest.
+
+## Computeds Do Not Run Until Needed
+
+A computed value waits until you read it.
+
+```lua showLineNumbers
+local count, setCount = Reheaven.signal(10)
+local calls = 0
+
+local double = Reheaven.computed(function()
+    calls += 1
+    return count() * 2
+end)
+
+print(calls) -- 0
+
+print(double()) -- 20
+print(calls) -- 1
+```
+
+## Computeds Remember Their Value
+
+After a computed runs, Reheaven remembers the result.
+
+If nothing important changed, reading it again does not run the function again.
+
+```lua
+print(double()) -- 20
+print(double()) -- 20
+print(calls) -- 1
+```
+
+## Updating a Signal
+
+When the signal changes, the computed value updates the next time you read it.
+
+```lua
+setCount(20)
+
+print(double()) -- 40
+print(calls) -- 2
+```
+
+## Computed From Computed
+
+A computed value can use another computed value.
+
+```lua showLineNumbers
+local count, setCount = Reheaven.signal(2)
+
+local double = Reheaven.computed(function()
+    return count() * 2
+end)
+
+local quadruple = Reheaven.computed(function()
+    return double() * 2
+end)
+
+print(quadruple()) -- 8
+```
+
+## When to Use Computed
+
+Use `computed` only when the value is **derived from other state**.
+
+Good examples:
+
+- health percentage from `health` and `maxHealth`
+- whether a player can buy an item from `coins`
+- total inventory weight from inventory items
+- character power level from stats
+- round status text from round state
+- formatted coins from a number
+
+:::danger[Do Not Use Computed for Everything]
+A computed value should not be used just because you want to run code later.
+
+Do **NOT** use `computed` for:
+
+- saving data
+- spawning objects
+- firing remotes
+- playing sounds
+- changing UI directly
+- running side effects
+- replacing normal functions
+
+Computed values should calculate and return a value.
+:::
+
+Good use:
+
+```lua showLineNumbers
+local healthPercent = Reheaven.computed(function()
+    return health() / maxHealth()
+end)
+```
+
+Bad use:
+
+```lua showLineNumbers
+local playSound = Reheaven.computed(function()
+    sound:Play()
+end)
+```
+
+Questionable use💀:
+
+```lua showLineNumbers
+local someNumber = Reheaven.computed(function()
+    return 50
+end)
+```
+:::note[Computed Rule]
+If the function does something instead of returning a value, it probably should not be a computed.
+
+If it also does not read any signal or computed value, then it is not really deriving reactive state...
+:::
+
+## Next Steps
+
+Next, learn how `effect` can automatically run code when the values it reads change.

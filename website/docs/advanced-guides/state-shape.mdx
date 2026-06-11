@@ -1,0 +1,203 @@
+---
+sidebar_position: 1
+title: State Shape
+---
+
+# State Shapes
+
+There is no single correct way to structure state.
+
+Reheaven gives you the flexibility to choose between many small signals, structured table signals, or a mix of both.
+
+:::tip[Key Point]
+Good state shapes make your code easier to understand, maintain, and scale(yes scability is very important).
+:::
+
+## Small Signals
+
+A common approach is to store each value separately.
+
+```lua showLineNumbers
+local health, setHealth = Reheaven.signal(100)
+local mana, setMana = Reheaven.signal(50)
+local level, setLevel = Reheaven.signal(1)
+```
+
+This makes it easy to see what each piece of state represents.
+
+It also allows values to change independently.
+
+## Structured Signals
+
+Sometimes several values naturally belong together.
+
+In those cases, a table signal can make sense.
+
+```lua showLineNumbers
+local player, setPlayer = Reheaven.signal({
+    health = 100;
+    mana = 50;
+    level = 1;
+})
+```
+
+Now all player-related values live in one place.
+
+```lua
+print(player().health)
+print(player().mana)
+```
+
+## Updating Table State
+
+When a signal stores a table, avoid modifying that table directly.
+
+Bad:
+
+```lua showLineNumbers
+local currentPlayer = player()
+
+currentPlayer.coins += 50
+```
+
+The value inside the table changed, but the signal itself was never updated.
+
+Reheaven tracks signal values, not arbitrary mutations that happen somewhere inside a table.
+
+Instead, create a new table and update the signal with that new value.
+
+```lua showLineNumbers
+local currentPlayer = player()
+local nextPlayer = table.clone(currentPlayer)
+
+nextPlayer.coins += 50
+
+setPlayer(nextPlayer)
+```
+
+This creates a new state object and clearly tells Reheaven that the state has changed.
+
+A common pattern is:
+
+```lua showLineNumbers
+local current = player()
+local nextState = table.clone(current)
+
+-- modify nextState here
+
+setPlayer(nextState)
+```
+
+This becomes especially useful as table state grows larger.
+
+:::note[About `table.clone`]
+`table.clone` only copies the first level of a table.
+
+That is usually enough for small, flat state tables:
+
+```lua showLineNumbers
+local current = player()
+local nextState = table.clone(current)
+
+nextState.coins += 50
+
+setPlayer(nextState)
+```
+
+If you need to change nested tables, use a `deepClone` helper or split that nested data into its own signal.
+
+```lua showLineNumbers
+local inventory, setInventory = Reheaven.signal({})
+local stats, setStats = Reheaven.signal({})
+local settings, setSettings = Reheaven.signal({})
+```
+
+Cloning small state tables is usually cheap enough for normal gameplay and UI state.
+
+If a table becomes huge or updates extremely often, consider splitting it into smaller signals instead of cloning the entire table every time.
+:::
+
+:::tip[Think in State Replacements]
+When using table signals, think about replacing state rather than mutating state.
+
+Read the current state, create the next state, then update the signal.
+
+```txt
+Current State
+↓
+Clone
+↓
+Modify Clone
+↓
+Set New State
+```
+
+This keeps updates predictable and easier to manage.
+:::
+
+## Choosing Between Them
+
+Neither approach is always better.
+
+Small signals are often easier to manage:
+
+```lua showLineNumbers
+local health, setHealth = Reheaven.signal(100)
+local mana, setMana = Reheaven.signal(50)
+```
+
+Structured signals can be more convenient when values naturally belong together:
+
+```lua showLineNumbers
+local player, setPlayer = Reheaven.signal({
+    health = 100;
+    mana = 50;
+})
+```
+
+Choose the shape that makes the most sense for your system.
+
+## Avoid Giant State Objects
+
+A common mistake is putting everything into one large signal.
+
+```lua showLineNumbers
+local gameState, setGameState = Reheaven.signal({
+    player = {};
+    inventory = {};
+    settings = {};
+    ui = {};
+    quests = {};
+    stats = {};
+})
+```
+
+This often becomes difficult to navigate as a project grows.
+
+Instead, consider splitting unrelated state into separate signals.
+
+```lua showLineNumbers
+local player, setPlayer = Reheaven.signal(...)
+local inventory, setInventory = Reheaven.signal(...)
+local settings, setSettings = Reheaven.signal(...)
+```
+
+## Think in Domains
+
+A useful guideline is to group state by responsibility.
+
+For example:
+
+```txt
+Player State
+Inventory State
+UI State
+Settings State
+Round State
+```
+
+Each group can then decide whether it should use one signal or many.
+
+## Next Steps
+
+Next, learn how actions can help organize and centralize state changes as your project grows.

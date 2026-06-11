@@ -1,0 +1,204 @@
+---
+sidebar_position: 6
+title: Performance Patterns
+---
+
+# Performance Patterns
+
+Reheaven is designed to avoid unnecessary work, but state organization still matters.
+
+:::tip[Key Point]
+Good performance usually comes from updating less, reading less, and keeping state focused.
+:::
+
+## Split Unrelated State
+
+Avoid putting unrelated values into one large signal.
+
+```lua title="GameState.lua" showLineNumbers
+local gameState, setGameState = Reheaven.signal({
+    coins = 100;
+    health = 50;
+    menuOpen = false;
+})
+```
+
+If these values change independently, consider splitting them:
+
+```lua title="PlayerState.lua" showLineNumbers
+local coins, setCoins = Reheaven.signal(100)
+local health, setHealth = Reheaven.signal(50)
+local menuOpen, setMenuOpen = Reheaven.signal(false)
+```
+
+This keeps updates more focused.
+
+## Use Computed for Expensive Values
+
+If a value is reused often, put it in a computed.
+
+```lua title="PowerLevel.lua" showLineNumbers
+local powerLevel = Reheaven.computed(function()
+    return strength() * 2 + agility() + defense()
+end)
+```
+
+Reheaven remembers computed values until something important changes.
+
+## Avoid Heavy Effects
+
+Effects should connect state to behavior.
+
+Try not to put large gameplay logic directly inside an effect.
+
+Bad:
+
+```lua title="RewardEffect.lua" showLineNumbers
+Reheaven.effect(function()
+    local currentCoins = coins()
+
+    if currentCoins >= 100 then
+        setRank("Gold")
+        setRewardReady(true)
+        setMessage("Reward unlocked")
+        RemoteEvent:FireServer("RewardUnlocked")
+    end
+end)
+```
+
+This effect is doing too much.
+
+Better:
+
+```lua title="RewardState.lua" showLineNumbers
+local canClaimReward = Reheaven.computed(function()
+    return coins() >= 100
+end)
+
+Reheaven.effect(function()
+    rewardButton.Visible = canClaimReward()
+end)
+```
+
+Then handle the actual reward through an action:
+
+```lua title="RewardActions.lua" showLineNumbers
+local function claimReward()
+    if not canClaimReward() then
+        return
+    end
+
+    setRank("Gold")
+    setRewardReady(false)
+    setMessage("Reward claimed")
+end
+```
+
+Effects are best for updating UI, connecting behavior, or syncing state into another system.
+
+Actions are best for changing game state.
+
+## Batch Larger Updates
+
+Use `batch` when one action updates several signals.
+
+```lua title="PurchaseItem.lua" showLineNumbers
+Reheaven.batch(function()
+    setCoins(400)
+    setGems(30)
+    setShopOpen(false)
+    setMessage("Purchased!")
+end)
+```
+
+You do not need `batch` for every tiny update.
+
+## Avoid Giant Reactive Graphs
+
+A table signal is valid for small groups of related state.
+
+The problem starts when one large table becomes the source for many unrelated UI effects.
+
+```lua title="GameState.lua" showLineNumbers
+local gameState, setGameState = Reheaven.signal({
+    coins = 100;
+    health = 75;
+    menuOpen = false;
+})
+
+Reheaven.effect(function()
+    coinsLabel.Text = `Coins: {gameState().coins}`
+end)
+
+Reheaven.effect(function()
+    healthLabel.Text = `Health: {gameState().health}`
+end)
+
+Reheaven.effect(function()
+    menuFrame.Visible = gameState().menuOpen
+end)
+```
+
+This works, but every effect reads `gameState()`.
+
+As the table grows, unrelated UI can become tied to the same large state object.
+
+For independent values, prefer separate signals:
+
+```lua title="UIState.lua" showLineNumbers
+local coins, setCoins = Reheaven.signal(100)
+local health, setHealth = Reheaven.signal(75)
+local menuOpen, setMenuOpen = Reheaven.signal(false)
+
+Reheaven.effect(function()
+    coinsLabel.Text = `Coins: {coins()}`
+end)
+
+Reheaven.effect(function()
+    healthLabel.Text = `Health: {health()}`
+end)
+
+Reheaven.effect(function()
+    menuFrame.Visible = menuOpen()
+end)
+```
+
+Now each effect reads only the state it actually needs.
+
+## Use Peek Carefully
+
+`peek` is useful when you want extra context without creating a dependency.
+
+```lua title="PlayerNotifications.lua" showLineNumbers
+Reheaven.effect(function()
+    local level = playerLevel()
+
+    local notificationsEnabled = Reheaven.peek(function()
+        return settings().notificationsEnabled
+    end)
+
+    if notificationsEnabled then
+        print(`Player reached level {level}`)
+    end
+end)
+```
+
+Changing `playerLevel` reruns the effect.
+
+Changing `notificationsEnabled` does not.
+
+:::danger[Do Not Hide Real Dependencies]
+If a value should cause the effect to update, do not read it with `peek`.
+
+Use `peek` only for extra information.
+:::
+
+:::danger[Do Not Optimize Too Early]
+Start with clear state first.
+
+Only optimize when the code becomes difficult to manage or you have a real performance problem.
+:::
+
+## Next Steps
+
+Next, learn how to keep larger reactive systems easier to manage.

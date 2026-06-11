@@ -1,0 +1,121 @@
+---
+sidebar_position: 7
+title: Debugging
+---
+
+# Debugging
+
+Reheaven includes debug warnings to help catch common mistakes while developing.
+
+:::tip[Key Point]
+Debug warnings are there to catch suspicious usage before it becomes harder to track down.
+:::
+
+## Debug Warnings
+
+Debug warnings are enabled by default.
+
+You can disable them if needed:
+
+```lua
+Reheaven.setDebugWarning(false)
+```
+
+Most projects should keep warnings enabled during development.
+
+## Watching the Wrong Value
+
+`watch` expects a signal or computed getter.
+
+```lua title="Bad.lua" showLineNumbers
+Reheaven.watch(function()
+    return 50
+end, function(value)
+    print(value)
+end)
+```
+
+This is suspicious because the getter does not come from Reheaven.
+
+Use a real signal or computed value instead:
+
+```lua title="Good.lua" showLineNumbers
+local coins, setCoins = Reheaven.signal(100)
+
+Reheaven.watch(coins, function(value)
+    print(value)
+end)
+```
+
+## Adding the Wrong Cleanup
+
+`scope` can clean up Roblox objects and cleanup functions.
+
+```lua title="Good.lua" showLineNumbers
+Reheaven.scope(function(add)
+    add(part)
+    add(connection)
+    add(thread)
+end)
+```
+
+But `add` should not receive random values.
+
+```lua title="Bad.lua" showLineNumbers
+Reheaven.scope(function(add)
+    add(50)
+    add("hello")
+end)
+```
+
+## Adding a Getter to Scope
+
+A signal or computed getter is not a cleanup.
+
+```lua showLineNumbers
+local coins, setCoins = Reheaven.signal(100)
+
+Reheaven.scope(function(add)
+    add(coins)
+end)
+```
+
+Reheaven warns because `coins` is a getter, not something that should be disposed.
+
+## Duplicate Cleanup
+
+If something is already tracked by a scope, do not add it again.
+
+```lua showLineNumbers
+Reheaven.scope(function(add)
+    local stop = Reheaven.effect(function()
+        print("Running")
+    end)
+
+    add(stop)
+end)
+```
+
+Effects created inside a scope are already tracked automatically.
+
+## Circular Computeds
+
+A computed value should not depend on itself.
+
+```lua showLineNumbers
+local value
+
+value = Reheaven.computed(function()
+    return value() + 1
+end)
+
+print(value()) -- should error
+```
+
+This creates a circular dependency and will error.
+
+## Final Advice
+
+Keep debug warnings enabled while building.
+
+They are especially useful when working with scopes, watchers, and larger reactive systems.

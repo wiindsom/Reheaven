@@ -1,0 +1,110 @@
+---
+sidebar_position: 1
+title: Signal
+---
+
+# Signal Values
+
+A signal stores a value.
+
+:::tip[Key Point]
+Signals are the core component of Reheaven.
+:::
+
+When you create a signal, Reheaven gives you two functions:
+
+- a getter for reading the value
+- a setter for updating the value
+
+```lua showLineNumbers
+local count, setCount = Reheaven.signal(0)
+```
+
+## Reading a Signal
+
+Call the getter to read the current value:
+
+```lua
+print(count()) -- 0
+```
+
+## Setting a Signal
+
+Call the setter to replace the value:
+
+```lua
+setCount(10)
+
+print(count()) -- 10
+```
+
+## Updating From the Previous Value
+
+The setter can also receive a function.
+
+This is useful when the next value depends on the current value:
+
+```lua showLineNumbers
+setCount(function(current)
+    return current + 1
+end)
+
+print(count()) -- 11
+```
+
+## Same Values
+
+If a signal is set to the same value, Reheaven skips the update.
+
+```lua
+setCount(11)
+setCount(11)
+```
+
+This helps avoid unnecessary watcher, effect, and computed updates.
+
+## Table State
+
+Signals can store tables too:
+
+```lua showLineNumbers
+local player, setPlayer = Reheaven.signal({
+    coins = 100;
+    level = 1;
+})
+```
+
+Update table state by replacing the table.
+The recommended way is to use a functional update:
+
+```lua showLineNumbers
+setPlayer(function(current)
+    return {
+        coins = current.coins + 50;
+        level = current.level;
+    }
+end)
+```
+
+You can also read the current value first and then set a new table:
+
+```lua showLineNumbers
+local currentPlayer = player()
+
+setPlayer({
+    coins = currentPlayer.coins + 50;
+    level = currentPlayer.level;
+})
+```
+
+Prefer functional updates when the next value depends on the previous value.
+
+Then read it normally:
+
+```lua
+print(player().coins) -- 150
+```
+
+## Next Steps
+
+Next, learn how `computed` values derive new state from signals.

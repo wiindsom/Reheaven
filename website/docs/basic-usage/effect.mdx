@@ -1,0 +1,140 @@
+---
+sidebar_position: 3
+title: Effect
+---
+
+# Effects
+
+An effect runs code and automatically tracks the signals or computed values it reads.
+
+:::tip[Key Point]
+Effects are for automatic reactions.
+:::
+
+Use `effect` when you want code to rerun whenever the state it uses changes.
+
+```lua showLineNumbers
+local coins, setCoins = Reheaven.signal(100)
+
+local stop = Reheaven.effect(function()
+    print("Coins:", coins())
+end)
+```
+
+The effect runs once immediately.
+
+```lua
+-- prints: Coins: 100
+```
+
+Then it runs again when `coins` changes:
+
+```lua
+setCoins(150)
+
+-- prints: Coins: 150
+```
+
+## Automatic Tracking
+
+You do not tell an effect what to watch.
+
+Reheaven figures it out from what the effect reads:
+
+```lua showLineNumbers
+local health, setHealth = Reheaven.signal(100)
+local maxHealth, setMaxHealth = Reheaven.signal(100)
+
+local stop = Reheaven.effect(function()
+    print("Health:", health(), "/", maxHealth())
+end)
+```
+
+This effect reruns when `health` or `maxHealth` changes.
+
+## Cleanup
+
+An effect can return a cleanup function.
+
+The cleanup runs **before the effect runs again**, and also when the effect is stopped.
+
+This may feel backwards at first, but it is intentional. Cleanup removes whatever the previous run created before the next run creates something new.
+
+```lua showLineNumbers
+local enabled, setEnabled = Reheaven.signal(true)
+
+local stop = Reheaven.effect(function()
+    if not enabled() then
+        return
+    end
+
+    print("Enabled")
+
+    return function()
+        print("Cleanup previous run")
+    end
+end)
+```
+
+If `enabled` changes, the old cleanup runs first. Then the effect runs again with the latest state.
+
+:::tip[Cleanup Belongs to the Previous Run]
+Think of cleanup as closing the previous effect run.
+
+If an effect connects an event, starts a timer, creates an object, or attaches something to UI, the cleanup should undo that work before the next run happens.
+:::
+
+Avoid reading reactive state inside cleanup unless you know what you are doing.
+
+Cleanup is meant to undo the old work. If you need the old value, capture it inside the effect before returning cleanup:
+
+```lua showLineNumbers
+local selectedTool, setSelectedTool = Reheaven.signal("Sword")
+
+local stop = Reheaven.effect(function()
+    local tool = selectedTool()
+
+    print("Equip:", tool)
+
+    return function()
+        print("Unequip:", tool)
+    end
+end)
+```
+
+Here, the cleanup uses `tool`, which was captured from the previous effect run.
+
+When `selectedTool` changes from `"Sword"` to `"Bow"`, the cleanup prints `"Sword"` first, then the effect runs again and equips `"Bow"`.
+
+```lua
+setSelectedTool("Bow")
+
+-- Unequip: Sword
+-- Equip: Bow
+```
+
+Stop the effect when you no longer need it:
+
+```lua
+stop()
+```
+
+## When to Use Effect
+
+Use `effect` when state should cause something to happen:
+
+- update UI
+- play or stop something
+- connect and clean up listeners
+- sync state into another system
+- run code when several values change
+
+:::danger[Do Not Use Effect for Derived Values]
+If you only need to calculate a value, use `computed`.
+
+Use `effect` when you need to perform an action.
+:::
+
+## Next Steps
+
+Next, learn how `watch` reacts to one specific signal or computed value.

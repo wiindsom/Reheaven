@@ -1,0 +1,113 @@
+---
+sidebar_position: 5
+title: Dynamic Dependencies
+---
+
+# Dynamic Dependencies
+
+Sometimes a computed value does not always read the same state.
+
+Which values it uses can change at runtime.
+
+:::tip[Key Point]
+Dynamic dependencies let a computed or effect react to different signals depending on the current state.
+:::
+
+## Basic Example
+
+Imagine a player can use either mana or stamina.
+
+```lua title="Resources.lua" showLineNumbers
+local usingMana, setUsingMana = Reheaven.signal(true)
+
+local mana, setMana = Reheaven.signal(50)
+local stamina, setStamina = Reheaven.signal(80)
+
+local currentResource = Reheaven.computed(function()
+    if usingMana() then
+        return mana()
+    end
+
+    return stamina()
+end)
+```
+
+When `usingMana` is `true`, `currentResource` reads `mana`.
+
+When `usingMana` is `false`, `currentResource` reads `stamina`.
+
+## Changing What Matters
+
+```lua
+print(currentResource()) -- 50
+
+setMana(40)
+print(currentResource()) -- 40
+
+setUsingMana(false)
+print(currentResource()) -- 80
+
+setMana(10)
+print(currentResource()) -- 80
+```
+
+After switching to stamina, changing `mana` no longer matters for `currentResource`.
+
+That is the dynamic part.
+
+## Why This Is Useful
+
+Dynamic dependencies are useful when your game state can point to different sources over time.
+
+Good examples:
+
+- selected player
+- selected item
+- active weapon
+- current target
+- current menu
+- current quest
+- active resource type
+
+## Selected Item Example
+
+```lua title="SelectedItem.lua" showLineNumbers
+local selectedItem, setSelectedItem = Reheaven.signal(nil)
+
+local swordDamage, setSwordDamage = Reheaven.signal(25)
+local bowDamage, setBowDamage = Reheaven.signal(15)
+
+local selectedDamage = Reheaven.computed(function()
+    local item = selectedItem()
+
+    if item == "Sword" then
+        return swordDamage()
+    end
+
+    if item == "Bow" then
+        return bowDamage()
+    end
+
+    return 0
+end)
+```
+
+`selectedDamage` only cares about the damage signal for the selected item.
+
+If the player selects the sword, sword damage matters.
+
+If the player selects the bow, bow damage matters.
+
+## Keep It Clear
+
+Dynamic dependencies are powerful, but they can become confusing if the logic is too large.
+
+:::tip[Simple Rule]
+Use dynamic dependencies when one piece of state chooses which other state should matter.
+:::
+
+If the computed becomes hard to read, split it into smaller computeds or actions.
+
+## Next Steps
+
+Next, learn performance patterns for keeping reactive systems fast and predictable.

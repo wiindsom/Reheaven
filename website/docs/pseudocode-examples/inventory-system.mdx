@@ -1,0 +1,120 @@
+---
+sidebar_position: 4
+title: Inventory System
+---
+
+# Inventory System
+
+This example shows a simple inventory system using Reheaven.
+
+The inventory stores items, selected item, and equipped item.
+
+:::tip[Key Point]
+Inventory state keeps track of what the player owns, selects, and equips.
+:::
+
+## Inventory State
+
+```lua title="InventoryState.lua" showLineNumbers
+local computed = Reheaven.computed
+
+local inventory, setInventory = Reheaven.signal({
+    items = {};
+    selectedItem = nil;
+    equippedItem = nil;
+})
+
+local itemCount = computed(function()
+    return #inventory().items
+end)
+
+local hasEquippedItem = computed(function()
+    return inventory().equippedItem ~= nil
+end)
+```
+
+## Inventory Actions
+
+```lua title="InventoryActions.lua" showLineNumbers
+local function addItem(itemName)
+    local current = inventory()
+    local nextState = table.clone(current)
+
+    nextState.items = table.clone(current.items)
+    -- double clone because items is a nested table.
+    -- this is where a deepClone helper can be useful :3
+    table.insert(nextState.items, itemName)
+
+    setInventory(nextState)
+end
+
+local function selectItem(itemName)
+    local current = inventory()
+    local nextState = table.clone(current)
+
+    nextState.selectedItem = itemName
+
+    setInventory(nextState)
+end
+
+local function equipSelectedItem()
+    local current = inventory()
+
+    if not current.selectedItem then
+        return
+    end
+
+    local nextState = table.clone(current)
+
+    nextState.equippedItem = current.selectedItem
+
+    setInventory(nextState)
+end
+```
+
+## Inventory UI
+
+```lua title="InventoryUI.lua" showLineNumbers
+local effect = Reheaven.effect
+
+effect(function()
+    itemCountLabel.Text = `Items: {itemCount()}`
+end)
+
+effect(function()
+    local state = inventory()
+
+    selectedLabel.Text = state.selectedItem or "None"
+    equippedLabel.Text = state.equippedItem or "None"
+end)
+```
+
+## Button Input
+
+```lua title="InventoryButtons.lua" showLineNumbers
+swordButton.MouseButton1Click:Connect(function()
+    selectItem("Sword")
+end)
+
+equipButton.MouseButton1Click:Connect(function()
+    equipSelectedItem()
+end)
+```
+
+## Inventory Flow
+
+```txt
+Item added
+↓
+Inventory state changes
+↓
+Selected or equipped item changes
+↓
+UI reacts
+```
+
+:::note[Table State]
+Because inventory is stored as a table signal, the examples clone the table before making changes.
+
+Nested tables like `items` should also be cloned before changing them.
+:::

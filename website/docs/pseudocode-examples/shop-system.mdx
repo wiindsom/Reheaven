@@ -1,0 +1,122 @@
+---
+sidebar_position: 2
+title: Shop System
+---
+
+# Shop System
+
+This example shows a simple shop system using Reheaven.
+
+The shop has coins, a selected item, and a purchase message.
+
+:::tip[Key Point]
+Shop actions change state. The UI reacts automatically.
+:::
+
+## Shop State
+
+```lua title="ShopState.lua" showLineNumbers
+local signal = Reheaven.signal
+local computed = Reheaven.computed
+
+local coins, setCoins = signal(250)
+local selectedItem, setSelectedItem = signal(nil)
+local message, setMessage = signal("")
+
+local itemCost = computed(function()
+    local item = selectedItem()
+
+    if item == "Sword" then
+        return 100
+    elseif item == "Shield" then
+        return 150
+    end
+
+    return 0
+end)
+
+local canBuy = computed(function()
+    return selectedItem() ~= nil and coins() >= itemCost()
+end)
+```
+
+## Shop Actions
+
+```lua title="ShopActions.lua" showLineNumbers
+local function selectItem(itemName)
+    setSelectedItem(itemName)
+    setMessage(`Selected {itemName}`)
+end
+
+local function buySelectedItem()
+    if not canBuy() then
+        setMessage("Not enough coins")
+        return
+    end
+
+    Reheaven.batch(function()
+        setCoins(coins() - itemCost())
+        setMessage(`Purchased {selectedItem()}!`)
+        setSelectedItem(nil)
+    end)
+end
+```
+
+## Shop UI
+
+```lua title="ShopUI.lua" showLineNumbers
+local effect = Reheaven.effect
+
+effect(function()
+    coinsLabel.Text = `Coins: {coins()}`
+end)
+
+effect(function()
+    local item = selectedItem()
+
+    selectedItemLabel.Text = if item then `Selected: {item}` else "No item selected"
+    priceLabel.Text = `Price: {itemCost()}`
+    buyButton.Active = canBuy()
+    buyButton.AutoButtonColor = canBuy()
+end)
+
+effect(function()
+    messageLabel.Text = message()
+end)
+```
+
+## Button Input
+
+```lua title="ShopButtons.lua" showLineNumbers
+swordButton.MouseButton1Click:Connect(function()
+    selectItem("Sword")
+end)
+
+shieldButton.MouseButton1Click:Connect(function()
+    selectItem("Shield")
+end)
+
+buyButton.MouseButton1Click:Connect(function()
+    buySelectedItem()
+end)
+```
+
+## Shop Flow
+
+```txt
+Button clicked
+↓
+Shop action runs
+↓
+Shop state changes
+↓
+Computed values update
+↓
+UI reacts
+```
+
+:::danger[Server Authority]
+For real purchases, validate the purchase on the server.
+
+The client can show shop UI, but the server should decide whether the player actually owns enough currency.
+:::

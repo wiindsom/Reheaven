@@ -1,0 +1,111 @@
+---
+sidebar_position: 3
+title: Round System
+---
+
+# Round System
+
+This example shows a simple round system using Reheaven.
+
+The round has a status, time left, and whether players can join.
+
+:::tip[Key Point]
+Round state controls what the game is currently doing.
+:::
+
+## Round State
+
+```lua title="RoundState.lua" showLineNumbers
+local signal = Reheaven.signal
+
+local roundStatus, setRoundStatus = signal("Intermission")
+local timeLeft, setTimeLeft = signal(30)
+local playersCanJoin, setPlayersCanJoin = signal(true)
+
+local roundActive = Reheaven.computed(function()
+    return roundStatus() == "InRound"
+end)
+```
+
+## Round Actions
+
+```lua title="RoundActions.lua" showLineNumbers
+local batch = Reheaven.batch
+
+local function startIntermission()
+    batch(function()
+        setRoundStatus("Intermission")
+        setTimeLeft(30)
+        setPlayersCanJoin(true)
+    end)
+end
+
+local function startRound()
+    batch(function()
+        setRoundStatus("InRound")
+        setTimeLeft(120)
+        setPlayersCanJoin(false)
+    end)
+end
+
+local function endRound()
+    batch(function()
+        setRoundStatus("Ended")
+        setTimeLeft(0)
+        setPlayersCanJoin(false)
+    end)
+end
+```
+
+## Timer Loop
+
+```lua title="RoundTimer.lua" showLineNumbers
+task.spawn(function()
+    while true do
+        task.wait(1)
+
+        if timeLeft() > 0 then
+            setTimeLeft(timeLeft() - 1)
+        elseif roundStatus() == "Intermission" then
+            startRound()
+        elseif roundStatus() == "InRound" then
+            endRound()
+        end
+    end
+end)
+```
+
+## Round UI
+
+```lua title="RoundUI.lua" showLineNumbers
+local effect = Reheaven.effect
+
+effect(function()
+    statusLabel.Text = roundStatus()
+    timerLabel.Text = `{timeLeft()}s`
+end)
+
+effect(function()
+    joinButton.Visible = playersCanJoin()
+end)
+```
+
+## Round Flow
+
+```txt
+Intermission
+↓
+Round starts
+↓
+Timer counts down
+↓
+Round ends
+↓
+Intermission starts again
+```
+
+:::danger[Keep the Server in Control]
+Round state should usually be controlled by the server.
+
+Clients can display the round state, but the server should decide when rounds start, end, and reset.
+:::
