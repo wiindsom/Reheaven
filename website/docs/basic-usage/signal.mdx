@@ -52,6 +52,26 @@ end)
 print(count()) -- 11
 ```
 
+Updater functions are also a clean way to update a signal from inside an effect.
+
+```lua showLineNumbers
+Reheaven.effect(function()
+    setCount(function(current)
+        return current + 1
+    end)
+end)
+```
+
+Reheaven also protects against same-effect self-write recursion:
+
+```lua showLineNumbers
+Reheaven.effect(function()
+    setCount(count() + 1)
+end)
+```
+
+When this happens, Reheaven skips rerunning the same effect and shows a debug warning.
+
 ## Same Values
 
 If a signal is set to the same value, Reheaven skips the update.

@@ -25,3 +25,10 @@ Reheaven is born.
 
 - Replication is planned for a future release.
 - API may continue to evolve as the library updates.
+
+## [1.0.1]
+
+### Fixed
+
+- Prevented same-effect self-write recursion when a signal is read and updated inside the same effect.
+- Added a debug warning for accidental signal self-writes inside effects.

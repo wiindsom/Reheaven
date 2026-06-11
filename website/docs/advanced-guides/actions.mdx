@@ -69,7 +69,7 @@ The intent is much clearer.
 
 ## Functional Updates
 
-When the new value depends on the current value, functional updates are often safer.
+When the new value depends on the current value, functional updates are often clearer.
 
 ```lua showLineNumbers
 local function addCoins(amount)
@@ -78,8 +78,6 @@ local function addCoins(amount)
     end)
 end
 ```
-
-This is especially useful when multiple updates can happen close together.
 
 Both styles are valid:
 
@@ -91,7 +89,19 @@ setCoins(function(current)
 end)
 ```
 
-Use the one that makes the state change easiest to understand.
+When updating from the current value, many developers prefer updater functions because they make the dependency on the previous value explicit.
+
+Inside effects, updater functions are usually the better choice:
+
+```lua showLineNumbers
+Reheaven.effect(function()
+    setCoins(function(current)
+        return current + 100
+    end)
+end)
+```
+
+Reheaven protects against same-effect self-write recursion and will warn in development when a signal is read and updated inside the same effect.
 
 ## Example Module
 

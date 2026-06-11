@@ -114,6 +114,44 @@ print(value()) -- should error
 
 This creates a circular dependency and will error.
 
+## Signal Self-Writes Inside Effects
+
+An effect should usually avoid reading and updating the same signal in the same run.
+
+```lua title="Bad.lua" showLineNumbers
+local coins, setCoins = Reheaven.signal(0)
+
+Reheaven.effect(function()
+    setCoins(coins() + 1)
+end)
+```
+
+This is suspicious because `coins()` is read inside the effect, then `setCoins` updates that same signal.
+
+Reheaven skips rerunning the same effect to prevent accidental recursion, and shows a debug warning.
+
+Use an updater function instead:
+
+```lua title="Good.lua" showLineNumbers
+local coins, setCoins = Reheaven.signal(0)
+
+Reheaven.effect(function()
+    setCoins(function(current)
+        return current + 1
+    end)
+end)
+```
+
+Or use `peek` if you need to read without tracking:
+
+```lua title="Good.lua" showLineNumbers
+local coins, setCoins = Reheaven.signal(0)
+
+Reheaven.effect(function()
+    setCoins(Reheaven.peek(coins) + 1)
+end)
+```
+
 ## Final Advice
 
 Keep debug warnings enabled while building.
