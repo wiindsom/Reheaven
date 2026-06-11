@@ -1,8 +1,8 @@
 --[[
-@wiindsom
+@wiindsom | 𝑅𝐸𝐻𝐸𝒜𝒱𝐸𝒩 v1
+Documentation -> https://arc.is-a.dev/Reheaven
 
-Inspired by Charm
-https://github.com/littensy/charm/tree/alien-signals
+Inspired by Charm & Alien Signals
 
 Licensed under the MIT License
 ]]
