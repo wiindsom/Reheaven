@@ -11,15 +11,11 @@
 </p>
 
 <p align="center">
-	<a href="https://github.com/wiindsom/reheaven/releases" style="text-decoration:none;">
-		<img src="https://img.shields.io/github/v/release/wiindsom/reheaven?style=for-the-badge" alt="Latest Release" />
-	</a>
-	<a href="https://github.com/wiindsom/reheaven/releases" style="text-decoration:none;">
-		<img src="https://img.shields.io/github/downloads/wiindsom/reheaven/total?style=for-the-badge" alt="GitHub Downloads" />
-	</a>
-	<a href="https://github.com/wiindsom/reheaven/blob/main/LICENSE" style="text-decoration:none;">
-		<img src="https://img.shields.io/github/license/wiindsom/reheaven?style=for-the-badge" alt="License" />
-	</a>
+	<a href="https://github.com/wiindsom/reheaven/releases"><img src="https://badgen.net/github/release/wiindsom/reheaven" alt="Latest Release"></a>
+	&nbsp;
+	<a href="https://github.com/wiindsom/reheaven/releases"><img src="https://badgen.net/github/assets-dl/wiindsom/reheaven" alt="GitHub Downloads"></a>
+	&nbsp;
+	<a href="https://github.com/wiindsom/reheaven/blob/main/LICENSE"><img src="https://badgen.net/github/license/wiindsom/reheaven" alt="License"></a>
 </p>
 
 <p align="center">
