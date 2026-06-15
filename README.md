@@ -11,6 +11,18 @@
 </p>
 
 <p align="center">
+	<a href="https://github.com/wiindsom/reheaven/releases">
+		<img src="https://img.shields.io/github/v/release/wiindsom/reheaven?style=for-the-badge" alt="Latest Release" />
+	</a>
+	<a href="https://github.com/wiindsom/reheaven/releases">
+		<img src="https://img.shields.io/github/downloads/wiindsom/reheaven/total?style=for-the-badge" alt="Downloads" />
+	</a>
+	<a href="https://github.com/wiindsom/reheaven/blob/main/LICENSE">
+		<img src="https://img.shields.io/github/license/wiindsom/reheaven?style=for-the-badge" alt="License" />
+	</a>
+</p>
+
+<p align="center">
 	For installation, examples, and full usage guides, visit the docs.
 </p>
 

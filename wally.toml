@@ -1,7 +1,7 @@
 [package]
 name = "wiindsom/reheaven"
 description = "A simple, powerful fine-grained reactive state system for Roblox."
-version = "1.0.0"
+version = "1.0.1"
 license = "MIT"
 authors = ["wiindsom"]
 realm = "shared"
